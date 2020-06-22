@@ -8,6 +8,8 @@
 #include <inttypes.h>
 #include <Arduino.h>
 
+#include "GlobalMacros.h"
+
 
 // ADS1234 currently not supported.
 
@@ -15,7 +17,8 @@ class ADS1232 {
 	///////////////////////////////////////////////////
 	///////////////////////////////////////////////////
 	public:
-	/* Constructor. Pass Pin numbers, or 255 if this pin should not be used.  */
+	/* Constructor. Pass Pin numbers, or 255 (NO_PIN) if this pin should not be used.  
+	Special care must be taken when pins are not used. Some functions in this class may malfunction. */
 	ADS1232(uint8_t pin_DRDY_DOUT, uint8_t pin_SCLK, uint8_t pin_Speed, uint8_t pin_Gain0, uint8_t pin_Gain1,
 	uint8_t pin_Temp, uint8_t pin_A0, uint8_t pin_PDWN_inverted);
 
@@ -54,11 +57,10 @@ class ADS1232 {
 	bool skipUnsettledResults = 0;				// set to keep old Readings until a Settled result was produced.
 	bool waitForSettledResults = 0;				// if results are unsettled, Stop everything else until settled.
 
-	// DO NOT USE UNLESS FOR INTERRUPT-CONTROL
+	// DO NOT USE! FOR INTERNAL INTERRUPT-CONTROL USE ONLY.
 	void retrieveResult();
+	// DO NOT USE! FOR INTERNAL INTERRUPT-CONTROL USE ONLY.
 	void clearInterrupt();
-
-
 
 
 
@@ -67,16 +69,16 @@ class ADS1232 {
 	private:
 
 	// ADS1232�s output pin
-	uint8_t pin_ADC_DRDY_DOUT = 255;
+	uint8_t pin_ADC_DRDY_DOUT = NO_PIN;
 
 	// ADS1232�s input pins
-	uint8_t pin_ADC_SCLK = 255;
-	uint8_t pin_ADC_Temp = 255;
-	uint8_t pin_ADC_A0 = 255;
-	uint8_t pin_ADC_PDWN_inverted = 255;
-	uint8_t pin_ADC_Speed = 255;
-	uint8_t pin_ADC_Gain0 = 255;
-	uint8_t pin_ADC_Gain1 = 255;
+	uint8_t pin_ADC_SCLK = NO_PIN;
+	uint8_t pin_ADC_Temp = NO_PIN;
+	uint8_t pin_ADC_A0 = NO_PIN;
+	uint8_t pin_ADC_PDWN_inverted = NO_PIN;
+	uint8_t pin_ADC_Speed = NO_PIN;
+	uint8_t pin_ADC_Gain0 = NO_PIN;
+	uint8_t pin_ADC_Gain1 = NO_PIN;
 
 	// internal states:
 	volatile int32_t lastReading_bin = 0;

@@ -1,8 +1,12 @@
 #include "ADS1232.hpp"
 #include <Arduino.h>
 
-#define NOP __asm__("nop\n\t")
-#define _DO_SERIAL_DEBUG_
+#include "GlobalMacros.h"
+
+// default configurations
+#define ADC_Default_SPEED 80
+#define ADC_Default_GAIN 1
+#define ADC_Default_INPUT 1
 
 uint8_t ADS1232::num_instances = 0;
 ADS1232* ADS1232::instances[4] = { NULL, NULL, NULL, NULL };
@@ -22,30 +26,22 @@ uint8_t pin_Temp, uint8_t pin_A0, uint8_t pin_PDWN_inverted) {
 
 /*	Initialize pins, apply default configuration and power up IC.*/
 void ADS1232::init(int32_t RefN_Volt, int32_t RefP_Volt, bool useInterrupt) {
+	// Check if the essential Pins are defined. Does NOT check if pin numbers are Valid! (because Arduino...)
 	if (
-		digitalPinToPort(pin_ADC_DRDY_DOUT) != NOT_A_PIN &&
-		digitalPinToPort(pin_ADC_SCLK) != NOT_A_PIN &&
-		digitalPinToPort(pin_ADC_Speed) != NOT_A_PIN &&
-		digitalPinToPort(pin_ADC_Gain0) != NOT_A_PIN &&
-		digitalPinToPort(pin_ADC_Gain1) != NOT_A_PIN &&
-		digitalPinToPort(pin_ADC_Temp) != NOT_A_PIN &&
-		digitalPinToPort(pin_ADC_A0) != NOT_A_PIN &&
-		digitalPinToPort(pin_ADC_PDWN_inverted) != NOT_A_PIN)
+		pin_ADC_DRDY_DOUT != NO_PIN &&
+		pin_ADC_SCLK != NO_PIN)
 	{
-		#ifdef _DO_SERIAL_DEBUG_
-		Serial.println("init ADC");
-		#endif /* _DO_SERIAL_DEBUG_ */
-		
 
-		// initialize pins
+#ifdef _DO_SERIAL_DEBUG_
+		Serial.println("init ADC");
+#endif /* _DO_SERIAL_DEBUG_ */
+
+		RefN_Voltage = RefN_Volt;
+		RefP_Voltage = RefP_Volt;
+
+		// initialize essential pins
 		pinMode(pin_ADC_DRDY_DOUT, INPUT_PULLUP);
 		pinMode(pin_ADC_SCLK, OUTPUT);
-		pinMode(pin_ADC_Temp, OUTPUT);
-		pinMode(pin_ADC_A0, OUTPUT);
-		pinMode(pin_ADC_PDWN_inverted, OUTPUT);
-		pinMode(pin_ADC_Speed, OUTPUT);
-		pinMode(pin_ADC_Gain0, OUTPUT);
-		pinMode(pin_ADC_Gain1, OUTPUT);
 
 		// interrupt-pin handling, if specified.
 		if (useInterrupt) {
@@ -71,21 +67,59 @@ void ADS1232::init(int32_t RefN_Volt, int32_t RefP_Volt, bool useInterrupt) {
 		}
 
 
-		// default settings
-		setSpeed_80SPS();
-		setGain_x1();
-		selectInput_A1();
+		// initialize the remaining pins and functions that are available
+		if (pin_ADC_Speed != NO_PIN) {
+			pinMode(pin_ADC_Speed, OUTPUT);
 
-		RefN_Voltage = RefN_Volt;
-		RefP_Voltage = RefP_Volt;
+			#if ADC_Default_SPEED == 80
+				setSpeed_80SPS();
+			#elif ADC_Default_SPEED == 10
+				setSpeed_10SPS();
+			#endif // ADC_Default_SPEED
+		}
 
-		// allow enough time for PSU voltage to settle.
-		while (millis() < 10) { NOP; }
-		setReadingsToDiscard(4);
-		setNextConversionDuration();
-		stopSleep();
-	}
-	else {
+		if (pin_ADC_Gain0 != NO_PIN) {
+			pinMode(pin_ADC_Gain0, OUTPUT);
+
+			#if ADC_Default_GAIN == 1
+				setGain_x1();
+			#elif ADC_Default_GAIN == 2
+				setGain_x2();
+			#endif // ADC_Default_GAIN
+		} 
+		if (pin_ADC_Gain1 != NO_PIN) {
+			pinMode(pin_ADC_Gain1, OUTPUT);
+
+			#if ADC_Default_GAIN == 64
+				setGain_x64();
+			#elif ADC_Default_GAIN == 128
+				setGain_x128();
+			#endif // ADC_Default_GAIN
+		} 
+		
+		if (pin_ADC_Temp != NO_PIN) {
+			pinMode(pin_ADC_Temp, OUTPUT);
+		}
+		if (pin_ADC_A0 != NO_PIN) {
+			pinMode(pin_ADC_A0, OUTPUT);
+
+			#if ADC_Default_INPUT == 1
+				selectInput_A1();
+			#elif ADC_Default_INPUT == 2
+				selectInput_A2();
+			#endif // ADC_Default_SPEED
+		}
+
+		if (pin_ADC_PDWN_inverted != NO_PIN) {
+			pinMode(pin_ADC_PDWN_inverted, OUTPUT);
+			// allow enough time for PSU voltage to settle.
+			while (millis() < 10) { /*wait*/ }
+			setReadingsToDiscard(4);
+			stopSleep();
+		}
+		
+
+	} else {
 		// invalid pins have been specified. ADC cannot work.
 		#ifdef _DO_SERIAL_DEBUG_
 		Serial.println("init ADC FAILED");
