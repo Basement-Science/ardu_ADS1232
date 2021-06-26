@@ -361,8 +361,6 @@ uint32_t ADS1232::getNextConversion_Period_milliSec() {
 /*	retrieves binary 24-bit reading from the ADC, and store it as a signed 32-bit integer. 
 	To be used by internal functions, or in case finished conversions are detected via INTERRUPTs. */
 void ADS1232::retrieveResult() {
-	digitalWrite(LED_BUILTIN, 1);
-
 	int32_t output = 0;
 
 	// ADS1232 data transmission begins with the MSB.
@@ -420,8 +418,6 @@ void ADS1232::retrieveResult() {
 
 	// reduce readingsToDiscard if it is not 0 already.
 	readingsToDiscard = readingsToDiscard > 0 ? (readingsToDiscard-1) : 0;
-
-	digitalWrite(LED_BUILTIN, 0);
 }
 
 
