@@ -3,13 +3,19 @@
 
 #include "GlobalMacros.h"
 
-// default configurations
-#define ADC_Default_SPEED 80
-#define ADC_Default_GAIN 1
-#define ADC_Default_INPUT 1
 
+#if defined ADC_supportPolling && defined ADC_supportInterrupts
+#pragma message "You specified support for both interrupts and polling. \
+This will consume additional program memory and is usually pointless."
+#elif not defined ADC_supportPolling && not defined ADC_supportInterrupts
+#error Please define 'ADC_supportPolling' or 'ADC_supportInterrupts' to use this library.
+#endif
+
+
+#ifdef ADC_supportInterrupts
 uint8_t ADS1232::num_instances = 0;
-ADS1232* ADS1232::instances[4] = { NULL, NULL, NULL, NULL };
+ADS1232* ADS1232::instances[ADC_max_instances] = { NULL, NULL, NULL, NULL };
+#endif // ADC_supportInterrupts
 
 ADS1232::ADS1232(uint8_t pin_DRDY_DOUT = NO_PIN, uint8_t pin_SCLK = NO_PIN, uint8_t pin_Speed = NO_PIN, uint8_t pin_Gain0 = NO_PIN, uint8_t pin_Gain1 = NO_PIN,
 	uint8_t pin_Temp = NO_PIN, uint8_t pin_A0 = NO_PIN, uint8_t pin_PDWN_inverted = NO_PIN) {
@@ -32,9 +38,9 @@ void ADS1232::init(int32_t RefN_Volt, int32_t RefP_Volt, bool useInterrupt) {
 		pin_ADC_SCLK != NO_PIN)
 	{
 
-#ifdef _DO_SERIAL_DEBUG_
+	#ifdef _DO_SERIAL_DEBUG_
 		Serial.println("init ADC");
-#endif /* _DO_SERIAL_DEBUG_ */
+	#endif /* _DO_SERIAL_DEBUG_ */
 
 		RefN_Voltage = RefN_Volt;
 		RefP_Voltage = RefP_Volt;
@@ -43,28 +49,16 @@ void ADS1232::init(int32_t RefN_Volt, int32_t RefP_Volt, bool useInterrupt) {
 		pinMode(pin_ADC_DRDY_DOUT, INPUT_PULLUP);
 		pinMode(pin_ADC_SCLK, OUTPUT);
 
+	#ifdef ADC_supportInterrupts
 		// interrupt-pin handling, if specified.
 		if (useInterrupt) {
-			switch (num_instances) {
-			case 0:
-				attachInterrupt(digitalPinToInterrupt(pin_ADC_DRDY_DOUT), ISR_0, FALLING);
-				instances[0] = this;
-				break;
-			case 1:
-				attachInterrupt(digitalPinToInterrupt(pin_ADC_DRDY_DOUT), ISR_1, FALLING);
-				instances[1] = this;
-				break;
-			case 2:
-				attachInterrupt(digitalPinToInterrupt(pin_ADC_DRDY_DOUT), ISR_2, FALLING);
-				instances[2] = this;
-				break;
-			case 3:
-				attachInterrupt(digitalPinToInterrupt(pin_ADC_DRDY_DOUT), ISR_3, FALLING);
-				instances[3] = this;
-				break;
-			}
+			static const void(*ISRs[ADC_max_instances])() = { &ISR_0, &ISR_1, &ISR_2, &ISR_3 };
+
+			attachInterrupt(digitalPinToInterrupt(pin_ADC_DRDY_DOUT), ISRs[num_instances], FALLING);
+			instances[num_instances] = this;
 			num_instances++;
 		}
+	#endif // ADC_supportInterrupts
 
 
 		// initialize the remaining pins and functions that are available
@@ -147,7 +141,10 @@ void ADS1232::setSpeed_10SPS() {
 	adc_ConversionPeriod_microSec = PERIOD_10SPS_microSec;
 	adc_CalibrationPeriod_microSec = PERIOD_CAL_10SPS_microSec;
 
-	setNextConversionDuration();
+	#ifdef ADC_supportPolling
+		setNextConversionDuration();
+	#endif // ADC_supportPolling
+
 	setReadingsToDiscard(1);
 }
 
@@ -158,7 +155,10 @@ void ADS1232::setSpeed_80SPS() {
 	adc_ConversionPeriod_microSec = PERIOD_80SPS_microSec;
 	adc_CalibrationPeriod_microSec = PERIOD_CAL_80SPS_microSec;
 
-	setNextConversionDuration();
+	#ifdef ADC_supportPolling
+		setNextConversionDuration();
+	#endif // ADC_supportPolling
+
 	setReadingsToDiscard(1);
 }
 
@@ -233,14 +233,18 @@ void ADS1232::selectInput_Temp() {
 
 /*	Power down the IC. */
 void ADS1232::startSleep() {
-	digitalWrite(pin_ADC_PDWN_inverted, 0);
-	isSleeping = 1;
+	if (pin_ADC_PDWN_inverted != NO_PIN) {
+		digitalWrite(pin_ADC_PDWN_inverted, 0);
+		isSleeping = 1;
+	}
 }
 
 /*	Power up the IC. */
 void ADS1232::stopSleep() {
-	digitalWrite(pin_ADC_PDWN_inverted, 1);
-	isSleeping = 0;
+	if (pin_ADC_PDWN_inverted != NO_PIN) {
+		digitalWrite(pin_ADC_PDWN_inverted, 1);
+		isSleeping = 0;
+	}
 }
 
 /*	returns the raw binary output data from the last read conversion */
@@ -291,7 +295,7 @@ bool ADS1232::isOverrange() {
 // simply feed in RefN_Voltage and RefP_Voltage scaled accordingly.
 double ADS1232::DataMap(int32_t counts, int32_t RefN_Voltage, int32_t RefP_Voltage, double ext_divider) {
 	double ref = (RefP_Voltage - RefN_Voltage) / 2.0;
-	double range = 8388607.0 / ref;
+	double range = 8388607.0 / ref;	// would be: 0x7FFFFF IF it was an integer.
 	double scale = ext_divider / (double)adc_gain;
 
 	double value = (counts / range) * scale;
@@ -307,6 +311,7 @@ double ADS1232::TemperatureMap_Celsius(int32_t counts) {
 }
 
 
+#ifdef ADC_supportPolling
 /*	polls the ADC´s pin 'DRDY_DOUT' until it indicates that a conversion finished.
 	Once ready, retrieves the reading and stores it.
 	Will abort if this takes longer than expected. (hardware problems etc.) */
@@ -351,11 +356,14 @@ void ADS1232::pollADCconversion () {
 		retrieveResult();
 	} while (readingsToDiscard && waitForSettledResults);
 }
+#endif // ADC_supportPolling
 
+#ifdef ADC_supportPolling
 /* Calculate the duration of the next conversion based on current settings */
 uint32_t ADS1232::getNextConversion_Period_milliSec() {
 	return NextConversion_Duration_milliSec;
 }
+#endif // ADC_supportPolling
 
 
 /*	retrieves binary 24-bit reading from the ADC, and store it as a signed 32-bit integer. 
@@ -392,7 +400,9 @@ void ADS1232::retrieveResult() {
 	digitalWrite(pin_ADC_SCLK, 1);
 	digitalWrite(pin_ADC_SCLK, 0);
 
-	setNextConversionDuration();
+	#ifdef ADC_supportPolling
+		setNextConversionDuration();
+	#endif // ADC_supportPolling
 
 	if (performCalibration || performCalibrationsContinuously)	{
 		/*
@@ -403,9 +413,8 @@ void ADS1232::retrieveResult() {
 		digitalWrite(pin_ADC_SCLK, 1);
 		digitalWrite(pin_ADC_SCLK, 0);
 
-		if (!performCalibrationsContinuously) {
-			performCalibration = 0;
-		}
+		// if performCalibrationsContinuously is used, resetting performCalibration doesnt matter
+		performCalibration = 0;
 	} 
 
 	if (skipUnsettledResults && readingsToDiscard) {
@@ -421,6 +430,7 @@ void ADS1232::retrieveResult() {
 }
 
 
+#ifdef ADC_supportPolling
 /*	determines and sets the duration of the next conversion */
 void ADS1232::setNextConversionDuration() {
 	if (performCalibration || performCalibrationsContinuously) {
@@ -429,9 +439,12 @@ void ADS1232::setNextConversionDuration() {
 		NextConversion_Duration_milliSec = adc_ConversionPeriod_microSec / 1000;
 	}
 }
+#endif // ADC_supportPolling
 
-/*	Since the DRDY_DOUT pin is used to put out data as well, 
-	it will trigger the interrupt when retrieving. 
+
+#ifdef ADC_supportInterrupts
+/*	Since the DRDY_DOUT pin is used to put out data as well,
+	it will trigger the interrupt when retrieving.
 	Clear the interrupt afterwards to avoid retriggering the interrupt immediately. */
 void ADS1232::clearInterrupt() {
 	switch (digitalPinToInterrupt(pin_ADC_DRDY_DOUT)) {
@@ -442,9 +455,9 @@ void ADS1232::clearInterrupt() {
 		EIFR = 0b00000010;		// write a 1 to INTF1 which clears Interrupt 1´s flag
 		break;
 	default:
-		#ifdef _DO_SERIAL_DEBUG_
+#ifdef _DO_SERIAL_DEBUG_
 		Serial.println("Warning: interrupt clearing not supported for this MCU");
-		#endif /* _DO_SERIAL_DEBUG_ */
+#endif /* _DO_SERIAL_DEBUG_ */
 		break;
 	}
 }
@@ -474,6 +487,10 @@ static void ADS1232::ISR_3() {
 		instances[3]->clearInterrupt();
 	}
 }
+#endif // ADC_supportInterrupts
+
+
+
 
 
 

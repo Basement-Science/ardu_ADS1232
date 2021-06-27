@@ -9,6 +9,7 @@
 #include <Arduino.h>
 
 #include "GlobalMacros.h"
+#include "ADSsettings.h"
 
 
 // ADS1234 currently not supported.
@@ -102,9 +103,6 @@ class ADS1232 {
 	#define PERIOD_CAL_10SPS_microSec 801030
 	#define PERIOD_CAL_80SPS_microSec 101290
 
-	#define TIMING_MARGIN 0.8
-	#define TIMING_TOLERANCE_MULTIPLIER 10
-
 	// private functions:
 	void setReadingsToDiscard(uint8_t readings);
 	void setNextConversionDuration();
@@ -116,7 +114,7 @@ class ADS1232 {
 
 	// Interrupt stuff
 	static uint8_t num_instances;
-	static ADS1232* instances[4];
+	static ADS1232* instances[ADC_max_instances];
 
 	static void ISR_0();
 	static void ISR_1();
