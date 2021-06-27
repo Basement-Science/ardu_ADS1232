@@ -11,8 +11,8 @@
 uint8_t ADS1232::num_instances = 0;
 ADS1232* ADS1232::instances[4] = { NULL, NULL, NULL, NULL };
 
-ADS1232::ADS1232(uint8_t pin_DRDY_DOUT, uint8_t pin_SCLK, uint8_t pin_Speed, uint8_t pin_Gain0, uint8_t pin_Gain1,
-uint8_t pin_Temp, uint8_t pin_A0, uint8_t pin_PDWN_inverted) {
+ADS1232::ADS1232(uint8_t pin_DRDY_DOUT = NO_PIN, uint8_t pin_SCLK = NO_PIN, uint8_t pin_Speed = NO_PIN, uint8_t pin_Gain0 = NO_PIN, uint8_t pin_Gain1 = NO_PIN,
+	uint8_t pin_Temp = NO_PIN, uint8_t pin_A0 = NO_PIN, uint8_t pin_PDWN_inverted = NO_PIN) {
 	// set private variables
 	pin_ADC_DRDY_DOUT = pin_DRDY_DOUT;
 	pin_ADC_SCLK = pin_SCLK;

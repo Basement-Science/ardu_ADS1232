@@ -19,8 +19,8 @@ class ADS1232 {
 	public:
 	/* Constructor. Pass Pin numbers, or 255 (NO_PIN) if this pin should not be used.  
 	Special care must be taken when pins are not used. Some functions in this class may malfunction. */
-	ADS1232(uint8_t pin_DRDY_DOUT, uint8_t pin_SCLK, uint8_t pin_Speed, uint8_t pin_Gain0, uint8_t pin_Gain1,
-	uint8_t pin_Temp, uint8_t pin_A0, uint8_t pin_PDWN_inverted);
+	ADS1232(uint8_t pin_DRDY_DOUT = NO_PIN, uint8_t pin_SCLK = NO_PIN, uint8_t pin_Speed = NO_PIN, uint8_t pin_Gain0 = NO_PIN, uint8_t pin_Gain1 = NO_PIN,
+	uint8_t pin_Temp = NO_PIN, uint8_t pin_A0 = NO_PIN, uint8_t pin_PDWN_inverted = NO_PIN);
 
 	// public functions
 	void init(int32_t RefN_Volt, int32_t RefP_Volt, bool useInterrupt);
@@ -72,13 +72,13 @@ class ADS1232 {
 	uint8_t pin_ADC_DRDY_DOUT = NO_PIN;
 
 	// ADS1232�s input pins
-	uint8_t pin_ADC_SCLK = NO_PIN;
-	uint8_t pin_ADC_Temp = NO_PIN;
-	uint8_t pin_ADC_A0 = NO_PIN;
-	uint8_t pin_ADC_PDWN_inverted = NO_PIN;
-	uint8_t pin_ADC_Speed = NO_PIN;
-	uint8_t pin_ADC_Gain0 = NO_PIN;
-	uint8_t pin_ADC_Gain1 = NO_PIN;
+	uint8_t pin_ADC_SCLK;
+	uint8_t pin_ADC_Temp;
+	uint8_t pin_ADC_A0;
+	uint8_t pin_ADC_PDWN_inverted;
+	uint8_t pin_ADC_Speed;
+	uint8_t pin_ADC_Gain0;
+	uint8_t pin_ADC_Gain1;
 
 	// internal states:
 	volatile int32_t lastReading_bin = 0;
@@ -87,13 +87,13 @@ class ADS1232 {
 	volatile bool Overrange = 0;
 
 	// current settings:
-	uint8_t adc_ConversionFrequency = 0;
-	uint32_t adc_ConversionPeriod_microSec = 0;
-	uint32_t adc_CalibrationPeriod_microSec = 0;
-	uint8_t adc_gain = 0;
-	uint8_t adc_input = 0;
-	int32_t RefN_Voltage = 0;
-	int32_t RefP_Voltage = 0;
+	uint8_t adc_ConversionFrequency;
+	uint32_t adc_ConversionPeriod_microSec;
+	uint32_t adc_CalibrationPeriod_microSec;
+	uint8_t adc_gain;
+	uint8_t adc_input;
+	int32_t RefN_Voltage;
+	int32_t RefP_Voltage;
 
 	uint32_t NextConversion_Duration_milliSec = 0;
 
